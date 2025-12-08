@@ -8,6 +8,24 @@ Begin VB.Form frmPrincipal
    LinkTopic       =   "Form1"
    ScaleHeight     =   6240
    ScaleWidth      =   6585
+   Begin VB.CommandButton cmdCancelar 
+      Caption         =   "Cancelar"
+      Height          =   375
+      Left            =   5520
+      TabIndex        =   13
+      Top             =   120
+      Visible         =   0   'False
+      Width           =   975
+   End
+   Begin VB.CommandButton cmdConfirmar 
+      Caption         =   "Confirmar"
+      Height          =   375
+      Left            =   4440
+      TabIndex        =   12
+      Top             =   120
+      Visible         =   0   'False
+      Width           =   975
+   End
    Begin VB.CommandButton cmdExcluir 
       Caption         =   "Excluir"
       Height          =   375
@@ -32,12 +50,13 @@ Begin VB.Form frmPrincipal
       Top             =   120
       Width           =   975
    End
-   Begin VB.Frame Frame1 
+   Begin VB.Frame frameDados 
       Caption         =   "Dados"
       Height          =   1575
       Left            =   120
       TabIndex        =   1
-      Top             =   1200
+      Top             =   600
+      Visible         =   0   'False
       Width           =   6375
       Begin VB.CheckBox chbEspecial 
          Caption         =   "Especial"
@@ -94,12 +113,12 @@ Begin VB.Form frmPrincipal
       End
    End
    Begin VB.ListBox lstNomes 
-      Height          =   3180
+      Height          =   5130
       ItemData        =   "Form1.frx":0000
       Left            =   120
       List            =   "Form1.frx":0007
       TabIndex        =   0
-      Top             =   2880
+      Top             =   600
       Width           =   6375
    End
 End
@@ -115,7 +134,6 @@ Dim rs As New ADODB.Recordset
 Dim conn As String
 Dim cli As Clientes
 
-
 Private Sub Form_Load()
 On Error GoTo Trata
 
@@ -130,6 +148,11 @@ Exit Sub
 
 Trata:
 MsgBox "Erro na conexão: " & Err.Description
+
+End Sub
+
+Private Sub txtIdade_KeyPress(KeyAscii As Integer)
+    Call ApenasNumeros(KeyAscii)
 End Sub
 
 Private Function ChecaSeIdExiste(ByVal parId As Long) As Boolean
@@ -146,23 +169,38 @@ ChecaSeIdExiste = False
 End Function
 
 Private Sub AdicionaAtualizaCliente(ByVal parId As Long, ByVal parNome As String)
-Dim i As Integer
-
-For i = 0 To lstNomes.ListCount - 1
-
-    If lstNomes.ItemData(i) = parId Then
-        lstNomes.List(i) = parNome
-        lstNomes.ItemData(i) = parId
-        Exit Sub
+    Dim sIndice As Integer
+    Dim sPosicao As Integer
+    Dim sAtualizado As Boolean
+    Dim sIndiceAntigo As Integer
+    
+    For sIndice = 0 To lstNomes.ListCount - 1
+        If lstNomes.ItemData(sIndice) = parId Then
+            lstNomes.List(sIndice) = parNome
+            sAtualizado = True
+            Exit For
+        End If
+    Next sIndice
+    
+    If sAtualizado Then
+        sIndiceAntigo = sIndice
+        lstNomes.RemoveItem sIndiceAntigo
     End If
-
-Next i
-
-lstNomes.AddItem parNome
-lstNomes.ItemData(lstNomes.NewIndex) = parId
+    
+    sPosicao = lstNomes.ListCount
+    For sIndice = 0 To lstNomes.ListCount - 1
+        If StrComp(parNome, lstNomes.List(sIndice), vbTextCompare) < 0 Then
+            sPosicao = sIndice
+            Exit For
+        End If
+    Next sIndice
+    
+    lstNomes.AddItem parNome, sPosicao
+    lstNomes.ItemData(sPosicao) = parId
 End Sub
 
 Public Sub CarregarClientes()
+Dim sLinha As String
 If rs.State = adStateOpen Then
     rs.Close
 End If
@@ -172,7 +210,15 @@ lstNomes.Clear
 rs.Open "SELECT * FROM Clientes", cn, adOpenStatic, adLockReadOnly
 
 Do Until rs.EOF
-    Call AdicionaAtualizaCliente(rs!ID, rs!Nome)
+    sLinha = "[" & rs!ID & "] - " & _
+            "[" & rs!Nome & "] - " & _
+            "[" & rs!Idade & "] - " & _
+            "[" & rs!Endereco & "]"
+
+    If rs!Especial = True Then
+        sLinha = sLinha & " - [Especial]"
+    End If
+    Call AdicionaAtualizaCliente(rs!ID, sLinha)
     rs.MoveNext
 Loop
 
@@ -180,8 +226,43 @@ rs.Close
 End Sub
 
 Private Sub cmdIncluir_Click()
+frameDados.Visible = True
+lstNomes.Visible = False
+cmdIncluir.Visible = False
+cmdEditar.Visible = False
+cmdExcluir.Visible = False
+cmdConfirmar.Visible = True
+cmdCancelar.Visible = True
+End Sub
+
+Private Sub cmdCancelar_Click()
+frameDados.Visible = False
+lstNomes.Visible = True
+cmdIncluir.Visible = True
+cmdEditar.Visible = True
+cmdExcluir.Visible = True
+cmdConfirmar.Visible = False
+cmdCancelar.Visible = False
+End Sub
+
+Private Sub cmdConfirmar_Click()
 If txtNome.Text = "" Or txtIdade.Text = "" Or txtEndereco = "" Then
     MsgBox "Nenhum campo deve ficar vazio!", vbExclamation
+    Exit Sub
+End If
+
+If txtIdade.Text > 125 Then
+    MsgBox "Idade não pode ser superior a 125 anos!", vbExclamation
+    Exit Sub
+End If
+
+If Len(txtNome.Text) > 50 Then
+    MsgBox "Campo nome não pode ter mais de 50 caracteres!", vbExclamation
+    Exit Sub
+End If
+
+If Len(txtEndereco.Text) > 250 Then
+    MsgBox "Campo nome não pode ter mais de 50 caracteres!", vbExclamation
     Exit Sub
 End If
 
@@ -199,6 +280,14 @@ txtEndereco.Text = ""
 chbEspecial = 0
 
 Call CarregarClientes
+
+frameDados.Visible = False
+lstNomes.Visible = True
+cmdIncluir.Visible = True
+cmdEditar.Visible = True
+cmdExcluir.Visible = True
+cmdConfirmar.Visible = False
+cmdCancelar.Visible = False
 End Sub
 
 Private Sub cmdEditar_Click()
@@ -233,5 +322,13 @@ If sOk = VbMsgBoxResult.vbYes Then
     cn.Execute sSql
 
     Call CarregarClientes
+End If
+End Sub
+
+Public Sub ApenasNumeros(KeyAscii As Integer)
+If Not (KeyAscii >= 48 And KeyAscii <= 57) Then
+    If KeyAscii <> vbKeyBack Then
+        KeyAscii = 0
+    End If
 End If
 End Sub
