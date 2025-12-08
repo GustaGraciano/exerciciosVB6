@@ -66,15 +66,42 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Explicit
 
+Private Sub Form_Load()
+    Me.KeyPreview = True
+End Sub
+
 Private Sub cmdAdicionaNome_Click()
+    If txtNome.Text = "" Then
+        MsgBox "Campo não pode ficar vazio! Um nome deve ser digitado."
+    End If
+
+
     If txtListaNomes.Text = "" Then
         txtListaNomes.Text = txtNome.Text
     Else
         txtListaNomes.Text = txtListaNomes.Text & vbCrLf & txtNome.Text
     End If
-    
+    txtNome = ""
+    txtNome.SetFocus
 End Sub
 
 Private Sub cmdLimpar_Click()
     txtListaNomes.Text = ""
+End Sub
+
+Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
+    Dim sOk As VbMsgBoxResult
+    
+    sOk = MsgBox("Deseja continuar?", vbQuestion + vbYesNo, "Form1.Form_QueryUnload")
+    
+    If sOk = VbMsgBoxResult.vbNo Then
+        Cancel = True
+    End If
+End Sub
+
+Private Sub txtNome_KeyPress(KeyAscii As Integer)
+    If KeyAscii = vbKeyReturn Then
+        KeyAscii = 0
+        cmdAdicionaNome_Click
+    End If
 End Sub
