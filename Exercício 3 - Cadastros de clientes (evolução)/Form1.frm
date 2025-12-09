@@ -338,6 +338,7 @@ Begin VB.Form frmPrincipal
          BackColor       =   &H80000004&
          Height          =   375
          Left            =   3720
+         Locked          =   -1  'True
          TabIndex        =   6
          Top             =   600
          Width           =   495
@@ -410,46 +411,52 @@ CarregarClientes
 With cmbSexo
     .AddItem "Masculino"
     .AddItem "Feminino"
-    .AddItem "Prefiro não dizer"
+    .AddItem "Indefinido"
 End With
-End Sub
 
-Private Sub txtIdade_KeyPress(KeyAscii As Integer)
-    Call ApenasNumeros(KeyAscii)
+opbCom(2).Value = True
+
+txtIdade.Text = CalcularIdade(CDate(fpDataNasc.Text))
 End Sub
 
 Private Sub txtNome_KeyPress(KeyAscii As Integer)
-    Call ApenasCaracteres(KeyAscii)
+    ApenasCaracteres (KeyAscii)
+End Sub
+
+Private Sub fpDataNasc_LostFocus()
+    If IsDate(fpDataNasc.Text) Then
+        txtIdade.Text = CalcularIdade(CDate(fpDataNasc.Text))
+    End If
 End Sub
 
 Public Sub CarregarClientes()
-If rs.State = adStateOpen Then
-    rs.Close
+If rs.State = adStateOpen Then rs.Close
+
+sSql = "SELECT id, nome, dataNasc, endereco, especial FROM Clientes"
+
+If IniP(eConsulta, sSql, rs) Then
+    If Not rs.EOF Then
+        rs.MoveLast
+        gridDados.MaxCols = rs.Fields.Count
+        gridDados.MaxRows = rs.RecordCount
+        rs.MoveFirst
+
+        Dim col As Long
+        For col = 0 To rs.Fields.Count - 1
+            gridDados.SetText col + 1, 0, rs.Fields(col).Name
+        Next col
+
+        Dim row As Long
+        row = 1
+        Do Until rs.EOF
+            For col = 0 To rs.Fields.Count - 1
+                gridDados.SetText col + 1, row, rs.Fields(col).Value & ""
+            Next col
+            row = row + 1
+            rs.MoveNext
+        Loop
+    End If
 End If
-
-Dim row As Long, col As Long
-
-sSql = "SELECT id, nome, dataNasc, idade, endereco, especial FROM Clientes"
-
-If IniP(Consulta, sSql, rs) Then
-
-End If
-
-gridDados.ClearRange 1, 1, gridDados.MaxCols, gridDados.MaxRows, True
-
-gridDados.MaxCols = rs.Fields.Count
-gridDados.MaxRows = rs.RecordCount
-
-row = 1
-
-Do Until rs.EOF
-    For col = 0 To rs.Fields.Count - 1
-        gridDados.SetText col + 1, row, rs.Fields(col).Value & ""
-    Next col
-
-    row = row + 1
-    rs.MoveNext
-Loop
 End Sub
 
 Private Function ClienteSelecionado() As Variant
@@ -464,8 +471,10 @@ ClienteSelecionado = sIdSelecionado
 End Function
 
 Private Sub cmdIncluir_Click()
-Dim sTipo As TipoComunicacao
+Dim sTipo As eTipoComunicacao
 Dim sMarcado As Boolean
+Dim sSexo As Integer
+sSexo = cmbSexo.ListIndex + 1
 Dim i As Integer
 
 sMarcado = False
@@ -488,18 +497,27 @@ If Trim(txtNome.Text) = "" _
        Exit Sub
 End If
 
-sSql = "INSERT INTO Clientes (nome, dataNasc, idade, endereco, sexo, valCredito, tipoComunicacao, Especial) VALUES (" & _
+If Not ChecaFormatoData(fpDataNasc.Text) Then
+    MsgBox "A data contém caracteres inválidos!", vbExclamation
+    Exit Sub
+End If
+
+If fpCredito.Text > 5000 Then
+    MsgBox "Valor inválido!", vbExclamation
+    Exit Sub
+End If
+
+sSql = "INSERT INTO Clientes (nome, dataNasc, endereco, sexo, valCredito, tipoComunicacao, Especial) VALUES (" & _
         "'" & txtNome.Text & "', " & _
         "'" & Format(fpDataNasc, "yyyy-mm-dd") & "', " & _
-        Val(txtIdade.Text) & ", " & _
         "'" & txtEndereco.Text & "', " & _
-        "'" & cmbSexo.Text & "', " & _
+        "'" & sSexo & "', " & _
         Replace(fpCredito.Text, ",", ".") & ", " & _
         sTipo & ", " & _
         IIf(chbEspecial.Value = 1, 1, 0) & _
         ")"
 
-If IniP(Executar, sSql) Then
+If IniP(eExecutar, sSql) Then
     MsgBox "Cliente cadastrado com sucesso!"
 End If
 
@@ -507,7 +525,6 @@ txtNome.Text = ""
 fpDataNasc = "18/09/2020"
 txtIdade.Text = ""
 txtEndereco.Text = ""
-cmbSexo.Text = ""
 fpCredito.Value = 0
 chbEspecial = 0
 
